@@ -6,6 +6,7 @@ from utils import get_actuation, nearest_point_on_trajectory_py2, first_point_on
 from ackermann_msgs.msg import AckermannDriveStamped
 from nav_msgs.msg import Odometry
 import tf
+import rospkg
 
 class PPA(object):
     def __init__(self, csv_path):
@@ -15,8 +16,8 @@ class PPA(object):
             wpts = [tuple(line) for line in csv.reader(f)]
             self.waypoints = np.array([(float(pt[0]), float(pt[1]), float(pt[2]), float(pt[3]), float(pt[4]), float(pt[5])) for pt in wpts])
 
-        self.pose_sub = rospy.Subscriber('/odom', Odometry, self.plan, queue_size=1)
-        self.drive_pub = rospy.Publisher('/drive', AckermannDriveStamped, queue_size=1)
+        self.pose_sub = rospy.Subscriber('/odom', Odometry, self.plan, queue_size=10)
+        self.drive_pub = rospy.Publisher('/drive', AckermannDriveStamped, queue_size=10)
 
     def _get_current_waypoint(self, waypoints, lad, position, theta):
         wpts = waypoints[:, 0:2]
@@ -46,11 +47,18 @@ class PPA(object):
         pose_y = odom_msg.pose.pose.position.y
 
         position = np.array([pose_x, pose_y])
-        lookahead_point = self._get_current_waypoint(self.waypoints, self.lookahead_distance, position, pose_theta)
+        lookahead_point = self._get_current_waypoint(self.waypoints, self.lad, position, pose_theta)
         if lookahead_point is None:
             return self.safe_speed, 0.0
-        speed, steering_angle = get_actuation(pose_theta, lookahead_point, position, self.lookahead_distance, self.wheelbase)
+        speed, steering_angle = get_actuation(pose_theta, lookahead_point, position, self.lad, 0.25)
         drive_msg = AckermannDriveStamped()
         drive_msg.drive.speed = speed
         drive_msg.drive.steering_angle = steering_angle
         self.drive_pub.publish(drive_msg)
+
+if __name__ == '__main__':
+    rospy.init_node('pp')
+    rospack = rospkg.RosPack()
+    path = rospack.get_path('benchmark1')
+    ppa = PPA(path + './src/skirk.csv')
+    rospy.spin()
