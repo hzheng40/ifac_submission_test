@@ -60,5 +60,5 @@ if __name__ == '__main__':
     rospy.init_node('pp')
     rospack = rospkg.RosPack()
     path = rospack.get_path('benchmark1')
-    ppa = PPA(path + './src/skirk.csv')
+    ppa = PPA(path + '/src/skirk.csv')
     rospy.spin()
